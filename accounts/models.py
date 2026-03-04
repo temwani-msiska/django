@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -24,7 +25,7 @@ class ChildProfile(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    parent = models.ForeignKey(ParentUser, on_delete=models.CASCADE, related_name='children')
+    parent = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='children')
     nickname = models.CharField(max_length=30)
     pin = models.CharField(max_length=128)
     avatar_character = models.CharField(max_length=10, choices=AVATAR_CHOICES)

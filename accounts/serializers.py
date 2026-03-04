@@ -1,31 +1,49 @@
+from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from accounts.models import ChildPreferences, ChildProfile, ParentUser
+from accounts.models import ChildPreferences, ChildProfile
 from core.utils import xp_for_level
-from rewards.models import ActivityLog, EarnedBadge
+from rewards.models import ActivityLog
 from rewards.serializers import ActivityLogSerializer, BadgeSerializer
+
+User = get_user_model()
+
+
+def _name_for_user(user):
+    return getattr(user, 'name', '') or getattr(user, 'first_name', '') or getattr(user, 'username', '')
 
 
 class ParentUserSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+
     class Meta:
-        model = ParentUser
+        model = User
         fields = ('id', 'email', 'name')
+
+    def get_name(self, obj):
+        return _name_for_user(obj)
 
 
 class ParentRegisterSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True)
 
     class Meta:
-        model = ParentUser
+        model = User
         fields = ('id', 'email', 'name', 'password')
 
     def create(self, validated_data):
+        name = validated_data.pop('name', '')
         password = validated_data.pop('password')
-        user = ParentUser(**validated_data)
-        user.set_password(password)
+        user = User(**validated_data)
+        if hasattr(user, 'name'):
+            user.name = name
+        else:
+            user.first_name = name
         user.username = user.email
+        user.set_password(password)
         user.save()
         return user
 

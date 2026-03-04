@@ -1,4 +1,4 @@
-from django.contrib.auth import authenticate
+from django.contrib.auth import get_user_model
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -20,6 +20,8 @@ from core.authentication import get_child_from_request
 from core.utils import get_rank
 from rewards.models import ActivityLog, EarnedBadge
 
+User = get_user_model()
+
 
 class ParentRegisterView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -35,8 +37,10 @@ class ParentLoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        user = authenticate(request, username=request.data.get('email'), password=request.data.get('password'))
-        if not user:
+        email = request.data.get('email')
+        password = request.data.get('password')
+        user = User.objects.filter(email=email).first()
+        if not user or not user.check_password(password):
             return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
         return Response({'tokens': tokens_for_user(user), 'parent': ParentUserSerializer(user).data})
 
@@ -88,7 +92,8 @@ class ParentMeView(APIView):
                     'learning_path': child.avatar_character,
                 }
             )
-        return Response({'id': request.user.id, 'email': request.user.email, 'name': request.user.name, 'children': children_data})
+        name = getattr(request.user, 'name', '') or getattr(request.user, 'first_name', '') or request.user.username
+        return Response({'id': request.user.id, 'email': request.user.email, 'name': name, 'children': children_data})
 
 
 class ChildMeView(APIView):

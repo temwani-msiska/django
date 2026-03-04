@@ -1,16 +1,19 @@
+from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand
 
-from accounts.models import ChildPreferences, ChildProfile, ParentUser
+from accounts.models import ChildPreferences, ChildProfile
+
+User = get_user_model()
 
 
 class Command(BaseCommand):
     help = 'Seed Zambian demo data'
 
     def handle(self, *args, **options):
-        parent, _ = ParentUser.objects.update_or_create(
+        parent, _ = User.objects.update_or_create(
             email='grace.mwale@email.co.zm',
-            defaults={'name': 'Mrs. Mwale', 'username': 'grace.mwale@email.co.zm'},
+            defaults={'username': 'grace.mwale@email.co.zm', 'first_name': 'Mrs. Mwale'},
         )
         parent.set_password('Password123!')
         parent.save()
