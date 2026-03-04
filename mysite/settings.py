@@ -1,12 +1,19 @@
 import os
 from datetime import timedelta
+from importlib.util import find_spec
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _csv_env(name, default=''):
+    raw = os.environ.get(name, default)
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
 DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = _csv_env('ALLOWED_HOSTS', 'api.codesheros.co.zm,www.api.codesheros.co.zm,localhost,127.0.0.1')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -15,10 +22,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'corsheaders',
-    'rest_framework',
-    'rest_framework_simplejwt.token_blacklist',
-    'django_filters',
     'core',
     'accounts',
     'characters',
@@ -28,10 +31,18 @@ INSTALLED_APPS = [
     'playground',
 ]
 
+if find_spec('corsheaders'):
+    INSTALLED_APPS.append('corsheaders')
+if find_spec('rest_framework'):
+    INSTALLED_APPS.append('rest_framework')
+if find_spec('rest_framework_simplejwt'):
+    INSTALLED_APPS.append('rest_framework_simplejwt.token_blacklist')
+if find_spec('django_filters'):
+    INSTALLED_APPS.append('django_filters')
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -40,12 +51,15 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+if find_spec('corsheaders'):
+    MIDDLEWARE.insert(2, 'corsheaders.middleware.CorsMiddleware')
+
 ROOT_URLCONF = 'mysite.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -93,7 +107,12 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.ParentUser'
 
-CORS_ALLOWED_ORIGINS = ['http://localhost:3000']
+CORS_ALLOWED_ORIGINS = _csv_env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,https://codesheros.co.zm')
+
+_csrf_defaults = ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://api.codesheros.co.zm', 'https://www.api.codesheros.co.zm', 'https://codesheros.co.zm']
+if os.environ.get('RAILWAY_PUBLIC_DOMAIN'):
+    _csrf_defaults.append(f"https://{os.environ['RAILWAY_PUBLIC_DOMAIN']}")
+CSRF_TRUSTED_ORIGINS = _csv_env('CSRF_TRUSTED_ORIGINS', ','.join(_csrf_defaults))
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
@@ -110,3 +129,25 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': ('djangorestframework_camel_case.render.CamelCaseJSONRenderer',),
     'DEFAULT_PARSER_CLASSES': ('djangorestframework_camel_case.parser.CamelCaseJSONParser',),
 }
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': os.environ.get('DJANGO_REQUEST_LOG_LEVEL', 'ERROR'),
+            'propagate': False,
+        },
+    },
+}
+
+
+AUTHENTICATION_BACKENDS = (
+    'accounts.backends.ParentUserEmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+)

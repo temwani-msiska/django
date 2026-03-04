@@ -5,16 +5,24 @@ from rewards.models import ActivityLog, Badge, EarnedBadge
 
 class BadgeSerializer(serializers.ModelSerializer):
     earned = serializers.SerializerMethodField()
+    earned_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Badge
-        fields = ('id', 'name', 'description', 'emoji', 'rarity', 'category', 'earned')
+        fields = ('id', 'name', 'description', 'emoji', 'rarity', 'category', 'earned', 'earned_at')
 
     def get_earned(self, obj):
         child = self.context.get('child')
         if not child:
             return False
         return EarnedBadge.objects.filter(child=child, badge=obj).exists()
+
+    def get_earned_at(self, obj):
+        child = self.context.get('child')
+        if not child:
+            return None
+        earned = EarnedBadge.objects.filter(child=child, badge=obj).first()
+        return earned.earned_at if earned else None
 
 
 class ActivityLogSerializer(serializers.ModelSerializer):
