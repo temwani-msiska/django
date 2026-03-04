@@ -1,13 +1,19 @@
 import os
-from importlib.util import find_spec
 from datetime import timedelta
+from importlib.util import find_spec
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _csv_env(name, default=''):
+    raw = os.environ.get(name, default)
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
 DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = _csv_env('ALLOWED_HOSTS', '*')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -99,7 +105,13 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-CORS_ALLOWED_ORIGINS = ['http://localhost:3000']
+
+CORS_ALLOWED_ORIGINS = _csv_env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')
+
+_csrf_defaults = ['http://localhost:3000', 'http://127.0.0.1:3000']
+if os.environ.get('RAILWAY_PUBLIC_DOMAIN'):
+    _csrf_defaults.append(f"https://{os.environ['RAILWAY_PUBLIC_DOMAIN']}")
+CSRF_TRUSTED_ORIGINS = _csv_env('CSRF_TRUSTED_ORIGINS', ','.join(_csrf_defaults))
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
