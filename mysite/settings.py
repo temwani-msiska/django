@@ -13,7 +13,7 @@ def _csv_env(name, default=''):
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
 DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
-ALLOWED_HOSTS = _csv_env('ALLOWED_HOSTS', '*')
+ALLOWED_HOSTS = _csv_env('ALLOWED_HOSTS', 'api.codesheros.co.zm,localhost,127.0.0.1')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -107,9 +107,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.ParentUser'
 
-CORS_ALLOWED_ORIGINS = _csv_env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')
+CORS_ALLOWED_ORIGINS = _csv_env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,https://codesheros.co.zm')
 
-_csrf_defaults = ['http://localhost:3000', 'http://127.0.0.1:3000']
+_csrf_defaults = ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://api.codesheros.co.zm', 'https://codesheros.co.zm']
 if os.environ.get('RAILWAY_PUBLIC_DOMAIN'):
     _csrf_defaults.append(f"https://{os.environ['RAILWAY_PUBLIC_DOMAIN']}")
 CSRF_TRUSTED_ORIGINS = _csv_env('CSRF_TRUSTED_ORIGINS', ','.join(_csrf_defaults))
