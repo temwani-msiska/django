@@ -99,6 +99,8 @@ class PlayerProgressSerializer(serializers.Serializer):
     xp_to_next_level = serializers.SerializerMethodField()
     badges = serializers.SerializerMethodField()
     activity = serializers.SerializerMethodField()
+    total_missions = serializers.SerializerMethodField()
+    missions_completed = serializers.SerializerMethodField()
 
     def get_xp_to_next_level(self, obj):
         return max(xp_for_level(obj.level) - obj.xp, 0)
@@ -111,6 +113,14 @@ class PlayerProgressSerializer(serializers.Serializer):
     def get_activity(self, obj):
         logs = ActivityLog.objects.filter(child=obj).order_by('-created_at')[:10]
         return ActivityLogSerializer(logs, many=True).data
+
+    def get_total_missions(self, obj):
+        from missions.models import Mission
+
+        return Mission.objects.filter(is_active=True).count()
+
+    def get_missions_completed(self, obj):
+        return obj.mission_progress.filter(status='completed').count()
 
 
 def tokens_for_user(user, child_id=None):

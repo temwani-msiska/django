@@ -25,6 +25,7 @@ class MissionRewardSerializer(serializers.ModelSerializer):
 
 
 class MissionSerializer(serializers.ModelSerializer):
+    character_slug = serializers.SlugRelatedField(source='character', slug_field='slug', read_only=True)
     status = serializers.SerializerMethodField()
     progress = serializers.SerializerMethodField()
     steps = MissionStepSerializer(many=True, read_only=True)
@@ -32,7 +33,29 @@ class MissionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Mission
-        fields = '__all__'
+        fields = (
+            'id',
+            'num',
+            'title',
+            'description',
+            'long_description',
+            'character_slug',
+            'difficulty',
+            'xp',
+            'coins',
+            'skills',
+            'mentor_tip',
+            'why_learn_this',
+            'estimated_minutes',
+            'starter_code',
+            'language',
+            'unlock_after',
+            'is_active',
+            'status',
+            'progress',
+            'steps',
+            'rewards',
+        )
 
     def get_status(self, obj):
         child = self.context.get('child')
