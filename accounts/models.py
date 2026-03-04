@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -12,6 +13,22 @@ class ParentUser(AbstractUser):
     consent_given = models.BooleanField(default=False)
     consent_date = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    groups = models.ManyToManyField(
+        Group,
+        blank=True,
+        related_name='accounts_parentuser_set',
+        related_query_name='accounts_parentuser',
+        help_text='The groups this user belongs to.',
+        verbose_name='groups',
+    )
+    user_permissions = models.ManyToManyField(
+        Permission,
+        blank=True,
+        related_name='accounts_parentuser_set',
+        related_query_name='accounts_parentuser',
+        help_text='Specific permissions for this user.',
+        verbose_name='user permissions',
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'name']
