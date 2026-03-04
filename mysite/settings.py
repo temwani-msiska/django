@@ -145,3 +145,9 @@ LOGGING = {
         },
     },
 }
+
+
+AUTHENTICATION_BACKENDS = (
+    'accounts.backends.ParentUserEmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+)

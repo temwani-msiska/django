@@ -8,48 +8,52 @@ class Command(BaseCommand):
     help = 'Create/update a superuser from environment variables if provided.'
 
     def handle(self, *args, **options):
-        username = os.environ.get('DJANGO_SUPERUSER_USERNAME')
-        email = os.environ.get('DJANGO_SUPERUSER_EMAIL')
+        username = os.environ.get('DJANGO_SUPERUSER_USERNAME', '').strip()
+        email = os.environ.get('DJANGO_SUPERUSER_EMAIL', '').strip().lower()
         password = os.environ.get('DJANGO_SUPERUSER_PASSWORD')
 
-        if not password or (not username and not email):
-            self.stdout.write(
-                self.style.WARNING(
-                    'Skipping superuser creation. Set DJANGO_SUPERUSER_PASSWORD and either DJANGO_SUPERUSER_USERNAME or DJANGO_SUPERUSER_EMAIL.'
-                )
-            )
+        if not password:
+            self.stdout.write(self.style.WARNING('Skipping superuser creation. Set DJANGO_SUPERUSER_PASSWORD.'))
             return
 
+        # If username looks like an email and explicit email missing, use it.
+        if not email and '@' in username:
+            email = username.lower()
+
+        if not email:
+            self.stdout.write(self.style.WARNING('Skipping superuser creation. Set DJANGO_SUPERUSER_EMAIL.'))
+            return
+
+        if not username:
+            username = email
+
         User = get_user_model()
-        lookup_field = 'username' if username else 'email'
-        lookup_value = username or email
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                'username': username,
+                'is_staff': True,
+                'is_superuser': True,
+                'is_active': True,
+            },
+        )
 
-        defaults = {
-            'is_staff': True,
-            'is_superuser': True,
-            'is_active': True,
-        }
-        if email:
-            defaults['email'] = email
+        changed = False
+        if getattr(user, 'username', None) != username:
+            user.username = username
+            changed = True
 
-        user, created = User.objects.get_or_create(**{lookup_field: lookup_value}, defaults=defaults)
-
-        updated = False
-        for field, value in defaults.items():
+        for field, value in (('is_staff', True), ('is_superuser', True), ('is_active', True)):
             if getattr(user, field, None) != value:
                 setattr(user, field, value)
-                updated = True
-
-        if email and getattr(user, 'email', None) != email:
-            user.email = email
-            updated = True
+                changed = True
 
         if created or not user.check_password(password):
             user.set_password(password)
-            updated = True
+            changed = True
 
-        if updated:
+        if changed:
             user.save()
 
         message = 'Created' if created else 'Ensured'
-        self.stdout.write(self.style.SUCCESS(f'{message} superuser: {lookup_value}'))
+        self.stdout.write(self.style.SUCCESS(f'{message} superuser: {email}'))
