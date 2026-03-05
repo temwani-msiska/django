@@ -34,6 +34,11 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'email', 'name', 'password')
 
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('An account with this email already exists.')
+        return value.lower()
+
     def create(self, validated_data):
         name = validated_data.pop('name', '')
         password = validated_data.pop('password')
