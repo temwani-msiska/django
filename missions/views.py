@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.authentication import get_child_from_request
-from core.utils import complete_mission
+from core.utils import complete_mission, is_arc_completed
 from missions.models import Mission, MissionProgress
 from missions.serializers import MissionSerializer
 
@@ -47,6 +47,14 @@ class MissionStartView(APIView):
     def post(self, request, id):
         child = get_child_from_request(request)
         mission = Mission.objects.get(id=id)
+
+        # Enforce story arc prerequisite
+        if mission.requires_arc and not is_arc_completed(child, mission.requires_arc):
+            return Response(
+                {'detail': f'You must complete the story "{mission.requires_arc.title}" first.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         progress, _ = MissionProgress.objects.get_or_create(child=child, mission=mission, defaults={'status': 'in_progress', 'started_at': timezone.now()})
         if progress.status == 'available':
             progress.status = 'in_progress'
@@ -72,5 +80,13 @@ class MissionCompleteView(APIView):
     def post(self, request, id):
         child = get_child_from_request(request)
         mission = Mission.objects.get(id=id)
+
+        # Enforce story arc prerequisite
+        if mission.requires_arc and not is_arc_completed(child, mission.requires_arc):
+            return Response(
+                {'detail': f'You must complete the story "{mission.requires_arc.title}" first.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         complete_mission(child, mission)
         return Response(status=status.HTTP_204_NO_CONTENT)

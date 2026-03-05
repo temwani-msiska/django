@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'rewards',
     'academy',
     'playground',
+    'story',
 ]
 
 if find_spec('corsheaders'):

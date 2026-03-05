@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/', include('rewards.urls')),
     path('api/', include('academy.urls')),
     path('api/', include('playground.urls')),
+    path('api/', include('story.urls')),
 ]
