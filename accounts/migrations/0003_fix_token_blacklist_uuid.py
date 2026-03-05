@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
     dependencies = [
         ("accounts", "0002_fix_uuid_foreign_keys"),
-        ("token_blacklist", "0013_alter_blacklistedtoken_options_and_more"),
+        ("token_blacklist", "0012_alter_outstandingtoken_user"),
     ]
 
     operations = [
