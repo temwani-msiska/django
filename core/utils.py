@@ -61,6 +61,19 @@ def get_rank(missions_completed: int) -> str:
     return rank
 
 
+def is_arc_completed(child, arc):
+    """Return True if the child has viewed every scene in the arc."""
+    from story.models import SceneProgress
+
+    if not arc or not child:
+        return True
+    total = arc.scenes.count()
+    if total == 0:
+        return True
+    viewed = SceneProgress.objects.filter(child=child, scene__arc=arc).count()
+    return viewed >= total
+
+
 def complete_mission(child, mission):
     from missions.models import Mission, MissionProgress
 

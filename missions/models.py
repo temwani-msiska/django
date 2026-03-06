@@ -20,6 +20,16 @@ class Mission(models.Model):
     starter_code = models.TextField()
     language = models.CharField(max_length=20)
     unlock_after = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL)
+    intro_arc = models.ForeignKey(
+        'story.StoryArc', null=True, blank=True, on_delete=models.SET_NULL, related_name='intro_for_missions',
+    )
+    outro_arc = models.ForeignKey(
+        'story.StoryArc', null=True, blank=True, on_delete=models.SET_NULL, related_name='outro_for_missions',
+    )
+    requires_arc = models.ForeignKey(
+        'story.StoryArc', null=True, blank=True, on_delete=models.SET_NULL, related_name='unlocks_missions',
+        help_text='Child must complete this arc before starting the mission',
+    )
     is_active = models.BooleanField(default=True)
 
 

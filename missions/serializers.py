@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
 from missions.models import Mission, MissionProgress, MissionReward, MissionStep, StepProgress
+from story.models import SceneProgress
+from story.serializers import StoryArcRefSerializer
 
 
 class MissionStepSerializer(serializers.ModelSerializer):
@@ -30,6 +32,9 @@ class MissionSerializer(serializers.ModelSerializer):
     progress = serializers.SerializerMethodField()
     steps = MissionStepSerializer(many=True, read_only=True)
     rewards = MissionRewardSerializer(many=True, read_only=True)
+    intro_arc = StoryArcRefSerializer(read_only=True)
+    outro_arc = StoryArcRefSerializer(read_only=True)
+    requires_arc = StoryArcRefSerializer(read_only=True)
 
     class Meta:
         model = Mission
@@ -55,7 +60,19 @@ class MissionSerializer(serializers.ModelSerializer):
             'progress',
             'steps',
             'rewards',
+            'intro_arc',
+            'outro_arc',
+            'requires_arc',
         )
+
+    def _is_arc_completed(self, arc, child):
+        if not arc or not child:
+            return True
+        total = arc.scenes.count()
+        if total == 0:
+            return True
+        viewed = SceneProgress.objects.filter(child=child, scene__arc=arc).count()
+        return viewed >= total
 
     def get_status(self, obj):
         child = self.context.get('child')
@@ -64,10 +81,15 @@ class MissionSerializer(serializers.ModelSerializer):
         progress = MissionProgress.objects.filter(child=child, mission=obj).first()
         if progress:
             return progress.status
-        if obj.unlock_after is None:
-            return 'available'
-        prereq = MissionProgress.objects.filter(child=child, mission=obj.unlock_after, status='completed').exists()
-        return 'available' if prereq else 'locked'
+        # Check mission prerequisite
+        if obj.unlock_after is not None:
+            prereq = MissionProgress.objects.filter(child=child, mission=obj.unlock_after, status='completed').exists()
+            if not prereq:
+                return 'locked'
+        # Check story arc prerequisite
+        if obj.requires_arc and not self._is_arc_completed(obj.requires_arc, child):
+            return 'locked'
+        return 'available'
 
     def get_progress(self, obj):
         child = self.context.get('child')

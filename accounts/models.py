@@ -13,6 +13,9 @@ class ParentUser(AbstractUser):
     consent_given = models.BooleanField(default=False)
     consent_date = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    email_verified = models.BooleanField(default=False)
+    confirmation_token = models.UUIDField(default=uuid.uuid4, null=True, blank=True)
+    confirmation_token_created_at = models.DateTimeField(null=True, blank=True)
     groups = models.ManyToManyField(
         Group,
         blank=True,

@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'rewards',
     'academy',
     'playground',
+    'story',
 ]
 
 if find_spec('corsheaders'):
@@ -107,7 +108,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.ParentUser'
 
-CORS_ALLOWED_ORIGINS = _csv_env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,https://codesheros.co.zm')
+CORS_ALLOWED_ORIGINS = _csv_env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,https://codesheros.co.zm,https://www.codesheros.co.zm')
+CORS_ALLOW_CREDENTIALS = True
 
 _csrf_defaults = ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://api.codesheros.co.zm', 'https://www.api.codesheros.co.zm', 'https://codesheros.co.zm']
 if os.environ.get('RAILWAY_PUBLIC_DOMAIN'):

@@ -34,7 +34,16 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'email', 'name', 'password')
 
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('An account with this email already exists.')
+        return value.lower()
+
     def create(self, validated_data):
+        import uuid
+
+        from django.utils import timezone
+
         name = validated_data.pop('name', '')
         password = validated_data.pop('password')
         user = User(**validated_data)
@@ -44,6 +53,8 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
             user.first_name = name
         user.username = user.email
         user.set_password(password)
+        user.confirmation_token = uuid.uuid4()
+        user.confirmation_token_created_at = timezone.now()
         user.save()
         return user
 

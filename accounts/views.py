@@ -30,7 +30,18 @@ class ParentRegisterView(APIView):
         serializer = ParentRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response({**ParentUserSerializer(user).data, 'tokens': tokens_for_user(user)}, status=status.HTTP_201_CREATED)
+
+        from accounts.emails import send_verification_email
+        send_verification_email(user)
+
+        return Response(
+            {
+                **ParentUserSerializer(user).data,
+                'tokens': tokens_for_user(user),
+                'email_verification_required': True,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class ParentLoginView(APIView):
@@ -147,3 +158,76 @@ class ChildScreenTimeView(APIView):
         child.screen_time_limit_minutes = request.data.get('screen_time_limit_minutes', child.screen_time_limit_minutes)
         child.save(update_fields=['screen_time_limit_minutes'])
         return Response({'screen_time_limit_minutes': child.screen_time_limit_minutes})
+
+
+class ConfirmEmailView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        import uuid as uuid_mod
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        token = request.query_params.get('token')
+        if not token:
+            return Response({'detail': 'Token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            token_uuid = uuid_mod.UUID(str(token))
+        except (ValueError, AttributeError):
+            return Response({'detail': 'Invalid confirmation link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(confirmation_token=token_uuid).first()
+        if not user:
+            return Response({'detail': 'Invalid confirmation link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if user.email_verified:
+            return Response({'detail': 'Email already verified.'})
+
+        if user.confirmation_token_created_at and user.confirmation_token_created_at < timezone.now() - timedelta(hours=24):
+            return Response(
+                {'detail': 'This link has expired. Please request a new confirmation email.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.email_verified = True
+        user.confirmation_token = None
+        user.confirmation_token_created_at = None
+        user.save(update_fields=['email_verified', 'confirmation_token', 'confirmation_token_created_at'])
+        return Response({'detail': 'Email verified successfully.'})
+
+
+class ResendConfirmationView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        import uuid as uuid_mod
+        from datetime import timedelta
+
+        from django.core.cache import cache
+        from django.utils import timezone
+
+        email = (request.data.get('email') or '').lower().strip()
+        safe_response = Response({'detail': 'If an account exists with this email, a new confirmation link has been sent.'})
+
+        if not email:
+            return safe_response
+
+        # Rate limit: 1 per 60s per email
+        cache_key = f'resend_confirm:{email}'
+        if cache.get(cache_key):
+            return safe_response
+
+        user = User.objects.filter(email__iexact=email).first()
+        if not user or user.email_verified:
+            return safe_response
+
+        user.confirmation_token = uuid_mod.uuid4()
+        user.confirmation_token_created_at = timezone.now()
+        user.save(update_fields=['confirmation_token', 'confirmation_token_created_at'])
+
+        from accounts.emails import send_verification_email
+        send_verification_email(user)
+
+        cache.set(cache_key, True, 60)
+        return safe_response
