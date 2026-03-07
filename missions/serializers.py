@@ -1,6 +1,10 @@
 from rest_framework import serializers
 
-from missions.models import Mission, MissionProgress, MissionReward, MissionStep, StepProgress
+from characters.serializers import CharacterSerializer
+from missions.models import (
+    BossBattle, BossBattlePhase, BossBattleProgress,
+    Mission, MissionProgress, MissionReward, MissionStep, StepProgress,
+)
 from story.models import SceneProgress
 from story.serializers import StoryArcRefSerializer
 
@@ -26,6 +30,41 @@ class MissionRewardSerializer(serializers.ModelSerializer):
         fields = ('type', 'label', 'value', 'badge')
 
 
+class BossBattlePhaseSerializer(serializers.ModelSerializer):
+    leader_character_detail = CharacterSerializer(source='leader_character', read_only=True)
+
+    class Meta:
+        model = BossBattlePhase
+        fields = ['id', 'phase_number', 'leader_character', 'leader_character_detail',
+                  'title', 'description', 'challenge_type', 'content',
+                  'intro_dialogue', 'success_dialogue', 'health_bar_label']
+
+
+class BossBattleSerializer(serializers.ModelSerializer):
+    phases = BossBattlePhaseSerializer(many=True, read_only=True)
+    progress = serializers.SerializerMethodField()
+    intro_arc = StoryArcRefSerializer(read_only=True)
+    victory_arc = StoryArcRefSerializer(read_only=True)
+
+    class Meta:
+        model = BossBattle
+        fields = ['id', 'title', 'description', 'total_phases', 'phases',
+                  'intro_arc', 'victory_arc', 'defeat_dialogue', 'xp_bonus', 'progress']
+
+    def get_progress(self, obj):
+        child = self.context.get('child')
+        if not child:
+            return None
+        progress = BossBattleProgress.objects.filter(child=child, boss_battle=obj).first()
+        if not progress:
+            return {'current_phase': 0, 'status': 'not_started', 'attempts': 0}
+        return {
+            'current_phase': progress.current_phase,
+            'status': progress.status,
+            'attempts': progress.attempts,
+        }
+
+
 class MissionSerializer(serializers.ModelSerializer):
     character_slug = serializers.SlugRelatedField(source='character', slug_field='slug', read_only=True)
     status = serializers.SerializerMethodField()
@@ -35,6 +74,7 @@ class MissionSerializer(serializers.ModelSerializer):
     intro_arc = StoryArcRefSerializer(read_only=True)
     outro_arc = StoryArcRefSerializer(read_only=True)
     requires_arc = StoryArcRefSerializer(read_only=True)
+    boss_battle = BossBattleSerializer(read_only=True)
 
     class Meta:
         model = Mission
@@ -63,6 +103,7 @@ class MissionSerializer(serializers.ModelSerializer):
             'intro_arc',
             'outro_arc',
             'requires_arc',
+            'boss_battle',
         )
 
     def _is_arc_completed(self, arc, child):

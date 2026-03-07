@@ -94,3 +94,63 @@ class StepProgress(models.Model):
     step = models.ForeignKey(MissionStep, on_delete=models.CASCADE)
     status = models.CharField(max_length=20)
     completed_at = models.DateTimeField(null=True, blank=True)
+
+
+class BossBattle(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    mission = models.OneToOneField(Mission, on_delete=models.CASCADE, related_name='boss_battle')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    total_phases = models.PositiveIntegerField(default=3)
+    intro_arc = models.ForeignKey(
+        'story.StoryArc', null=True, blank=True, on_delete=models.SET_NULL, related_name='boss_intro',
+    )
+    victory_arc = models.ForeignKey(
+        'story.StoryArc', null=True, blank=True, on_delete=models.SET_NULL, related_name='boss_victory',
+    )
+    defeat_dialogue = models.JSONField(default=list, help_text="Dialogue shown on phase failure")
+    xp_bonus = models.PositiveIntegerField(default=100, help_text="Bonus XP on top of mission XP")
+
+    class Meta:
+        verbose_name = 'Boss Battle'
+
+    def __str__(self):
+        return self.title
+
+
+class BossBattlePhase(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    boss_battle = models.ForeignKey(BossBattle, on_delete=models.CASCADE, related_name='phases')
+    phase_number = models.PositiveIntegerField()
+    leader_character = models.ForeignKey('characters.Character', on_delete=models.CASCADE)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    challenge_type = models.CharField(max_length=30, choices=MissionStep.STEP_TYPE_CHOICES)
+    content = models.JSONField(default=dict, help_text="Same schema as MissionStep.content")
+    intro_dialogue = models.JSONField(default=list, help_text="Character dialogue before phase")
+    success_dialogue = models.JSONField(default=list, help_text="Character dialogue on phase clear")
+    health_bar_label = models.CharField(max_length=100, default="Dr. Glitch", help_text="Boss health bar label")
+
+    class Meta:
+        ordering = ['phase_number']
+        unique_together = ('boss_battle', 'phase_number')
+
+    def __str__(self):
+        return f'{self.boss_battle.title} — Phase {self.phase_number}'
+
+
+class BossBattleProgress(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    child = models.ForeignKey('accounts.ChildProfile', on_delete=models.CASCADE, related_name='boss_progress')
+    boss_battle = models.ForeignKey(BossBattle, on_delete=models.CASCADE, related_name='progress')
+    current_phase = models.PositiveIntegerField(default=1)
+    status = models.CharField(max_length=20, choices=[
+        ('not_started', 'Not Started'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+    ], default='not_started')
+    attempts = models.PositiveIntegerField(default=0)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('child', 'boss_battle')

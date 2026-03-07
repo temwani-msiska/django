@@ -1,6 +1,9 @@
 from django.contrib import admin
 
-from missions.models import Mission, MissionProgress, MissionReward, MissionStep, StepProgress
+from missions.models import (
+    BossBattle, BossBattlePhase, BossBattleProgress,
+    Mission, MissionProgress, MissionReward, MissionStep, StepProgress,
+)
 
 
 class MissionStepInline(admin.TabularInline):
@@ -46,3 +49,27 @@ class MissionRewardAdmin(admin.ModelAdmin):
 class StepProgressAdmin(admin.ModelAdmin):
     list_display = ('mission_progress', 'step', 'status', 'completed_at')
     list_filter = ('status',)
+
+
+class BossBattlePhaseInline(admin.TabularInline):
+    model = BossBattlePhase
+    extra = 0
+    ordering = ['phase_number']
+
+
+@admin.register(BossBattle)
+class BossBattleAdmin(admin.ModelAdmin):
+    list_display = ['title', 'mission', 'total_phases']
+    inlines = [BossBattlePhaseInline]
+
+
+@admin.register(BossBattlePhase)
+class BossBattlePhaseAdmin(admin.ModelAdmin):
+    list_display = ['boss_battle', 'phase_number', 'leader_character', 'challenge_type']
+    list_filter = ['challenge_type']
+
+
+@admin.register(BossBattleProgress)
+class BossBattleProgressAdmin(admin.ModelAdmin):
+    list_display = ['child', 'boss_battle', 'current_phase', 'status', 'attempts']
+    list_filter = ['status']
