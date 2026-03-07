@@ -1,20 +1,62 @@
 from rest_framework import serializers
 
-from academy.models import LearningTrack, Lesson, LessonProgress
+from academy.models import LearningTrack, Lesson, LessonProgress, LessonStep, LessonStepProgress
+
+
+class LessonStepSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+    submitted_answer = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LessonStep
+        fields = ['id', 'number', 'step_type', 'title', 'content', 'hint', 'is_required', 'status', 'submitted_answer']
+
+    def get_status(self, obj):
+        child = self.context.get('child')
+        if not child:
+            return 'locked'
+        progress = LessonStepProgress.objects.filter(child=child, step=obj).first()
+        return progress.status if progress else 'locked'
+
+    def get_submitted_answer(self, obj):
+        child = self.context.get('child')
+        if not child:
+            return None
+        progress = LessonStepProgress.objects.filter(child=child, step=obj).first()
+        return progress.submitted_answer if progress else None
 
 
 class LessonSerializer(serializers.ModelSerializer):
     completed = serializers.SerializerMethodField()
+    slug = serializers.CharField(source='id', read_only=True)
+    steps = LessonStepSerializer(many=True, read_only=True)
+    step_count = serializers.SerializerMethodField()
+    completed_steps = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
-        fields = '__all__'
+        fields = ['id', 'slug', 'title', 'description', 'duration', 'order',
+                  'completed', 'steps', 'step_count', 'completed_steps']
 
     def get_completed(self, obj):
         child = self.context.get('child')
         if not child:
             return False
         return LessonProgress.objects.filter(child=child, lesson=obj, completed=True).exists()
+
+    def get_step_count(self, obj):
+        return obj.steps.filter(is_required=True).count()
+
+    def get_completed_steps(self, obj):
+        child = self.context.get('child')
+        if not child:
+            return 0
+        return LessonStepProgress.objects.filter(
+            child=child,
+            step__lesson=obj,
+            step__is_required=True,
+            status='completed'
+        ).count()
 
 
 class LearningTrackSerializer(serializers.ModelSerializer):
@@ -23,3 +65,7 @@ class LearningTrackSerializer(serializers.ModelSerializer):
     class Meta:
         model = LearningTrack
         fields = '__all__'
+
+
+class LessonStepSubmitSerializer(serializers.Serializer):
+    answer = serializers.JSONField(required=True)

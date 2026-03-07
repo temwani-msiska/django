@@ -10,7 +10,7 @@ class MissionStepSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MissionStep
-        fields = ('id', 'num', 'title', 'description', 'hint', 'validation_type', 'validation_value', 'status')
+        fields = ('id', 'num', 'step_type', 'title', 'description', 'hint', 'content', 'validation_type', 'validation_value', 'status')
 
     def get_status(self, obj):
         mission_progress = self.context.get('mission_progress')

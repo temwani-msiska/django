@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 
 
@@ -28,3 +30,49 @@ class LessonProgress(models.Model):
 
     class Meta:
         unique_together = ('child', 'lesson')
+
+
+class LessonStep(models.Model):
+    STEP_TYPE_CHOICES = [
+        ('explanation', 'Explanation'),
+        ('example', 'Example'),
+        ('guided_coding', 'Guided Coding'),
+        ('multiple_choice', 'Multiple Choice'),
+        ('fill_in', 'Fill In'),
+        ('debugging', 'Debugging'),
+        ('checkpoint', 'Checkpoint Question'),
+        ('mini_challenge', 'Mini Challenge'),
+        ('reflection', 'Reflection'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='steps')
+    number = models.PositiveIntegerField()
+    step_type = models.CharField(max_length=30, choices=STEP_TYPE_CHOICES)
+    title = models.CharField(max_length=200)
+    content = models.JSONField(default=dict)
+    hint = models.TextField(blank=True)
+    is_required = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['number']
+        unique_together = ('lesson', 'number')
+
+
+class LessonStepProgress(models.Model):
+    STATUS_CHOICES = [
+        ('locked', 'Locked'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    child = models.ForeignKey('accounts.ChildProfile', on_delete=models.CASCADE, related_name='lesson_step_progress')
+    step = models.ForeignKey(LessonStep, on_delete=models.CASCADE, related_name='progress')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='locked')
+    submitted_answer = models.JSONField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('child', 'step')

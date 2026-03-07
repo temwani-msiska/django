@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -5,8 +6,9 @@ from rest_framework.views import APIView
 
 from core.authentication import get_child_from_request
 from core.utils import complete_mission, is_arc_completed
-from missions.models import Mission, MissionProgress
+from missions.models import Mission, MissionProgress, MissionStep, StepProgress
 from missions.serializers import MissionSerializer
+from playground.validators import validate_step_answer
 
 
 class MissionListView(generics.ListAPIView):
@@ -90,3 +92,67 @@ class MissionCompleteView(APIView):
 
         complete_mission(child, mission)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MissionStepSubmitView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id, step_number):
+        child = get_child_from_request(request)
+        mission = get_object_or_404(Mission, id=id)
+        step = get_object_or_404(MissionStep, mission=mission, num=step_number)
+
+        answer = request.data.get('answer', {})
+
+        # Use new content-based validation if content is populated, else fall back
+        if step.content:
+            result = validate_step_answer(step.step_type, step.content, answer)
+        else:
+            result = {'passed': True, 'feedback': 'Step completed!'}
+
+        mission_completed = False
+        if result['passed']:
+            # Get or create mission progress
+            mission_progress, _ = MissionProgress.objects.get_or_create(
+                child=child, mission=mission,
+                defaults={'status': 'in_progress', 'started_at': timezone.now()}
+            )
+
+            # Mark step completed
+            step_progress, _ = StepProgress.objects.get_or_create(
+                mission_progress=mission_progress, step=step,
+                defaults={'status': 'locked'}
+            )
+            step_progress.status = 'completed'
+            step_progress.completed_at = timezone.now()
+            step_progress.save()
+
+            # Unlock next step
+            next_step = MissionStep.objects.filter(
+                mission=mission, num=step.num + 1
+            ).first()
+            if next_step:
+                StepProgress.objects.get_or_create(
+                    mission_progress=mission_progress, step=next_step,
+                    defaults={'status': 'active'}
+                )
+
+            # Update progress percentage
+            total_steps = mission.steps.count()
+            completed_steps = StepProgress.objects.filter(
+                mission_progress=mission_progress, status='completed'
+            ).count()
+            mission_progress.progress = int((completed_steps / total_steps) * 100) if total_steps > 0 else 0
+            mission_progress.save(update_fields=['progress'])
+
+            # If all steps complete, trigger mission completion
+            if completed_steps >= total_steps:
+                complete_mission(child, mission)
+                mission_completed = True
+
+        return Response({
+            'passed': result['passed'],
+            'feedback': result['feedback'],
+            'step_completed': result['passed'],
+            'mission_completed': mission_completed,
+        })

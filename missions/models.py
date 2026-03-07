@@ -34,6 +34,20 @@ class Mission(models.Model):
 
 
 class MissionStep(models.Model):
+    STEP_TYPE_CHOICES = [
+        ('story', 'Story'),
+        ('speech_bubble_fill', 'Speech Bubble Fill'),
+        ('multiple_choice', 'Multiple Choice'),
+        ('drag_and_drop', 'Drag and Drop'),
+        ('command_sequence', 'Command Sequence'),
+        ('matching', 'Matching'),
+        ('true_false', 'True/False'),
+        ('code_editor_challenge', 'Code Editor Challenge'),
+        ('debug_task', 'Debug Task'),
+        ('mini_project', 'Mini Project'),
+        ('boss_battle_phase', 'Boss Battle Phase'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mission = models.ForeignKey(Mission, on_delete=models.CASCADE, related_name='steps')
     num = models.IntegerField()
@@ -42,6 +56,8 @@ class MissionStep(models.Model):
     hint = models.TextField(blank=True)
     validation_type = models.CharField(max_length=30)
     validation_value = models.TextField()
+    step_type = models.CharField(max_length=30, choices=STEP_TYPE_CHOICES, default='story')
+    content = models.JSONField(default=dict, blank=True, help_text="Step content — structure depends on step_type")
 
 
 class MissionReward(models.Model):
