@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from academy.models import LearningTrack, Lesson
+from academy.models import LearningTrack, Lesson, LessonStep
 
 
 # (id, title, description, icon, color, order)
@@ -118,12 +118,211 @@ LESSONS = {
     ],
 }
 
+# Lesson steps for HTML Basics lessons 1 and 2
+LESSON_STEPS = {
+    'html-1': [
+        {
+            'number': 1,
+            'step_type': 'explanation',
+            'title': 'What is HTML?',
+            'content': {
+                'text': 'HTML stands for HyperText Markup Language. It is the language used to create webpages. Think of HTML as the skeleton of a webpage — it gives structure to everything you see online!',
+                'image_key': 'html-intro',
+            },
+            'hint': '',
+        },
+        {
+            'number': 2,
+            'step_type': 'example',
+            'title': 'Your First HTML Tag',
+            'content': {
+                'text': 'The <h1> tag creates a big heading on your page. Here is an example:',
+                'code': '<h1>Hello World</h1>',
+                'language': 'html',
+            },
+            'hint': 'Tags have an opening part like <h1> and a closing part like </h1>.',
+        },
+        {
+            'number': 3,
+            'step_type': 'guided_coding',
+            'title': 'Type a Heading Tag',
+            'content': {
+                'prompt': 'Type an <h1> tag that says "My First Page".',
+                'starter_code': '',
+                'language': 'html',
+                'validation': {'mode': 'contains', 'expected': '<h1>'},
+            },
+            'hint': 'Remember to open with <h1> and close with </h1>.',
+        },
+        {
+            'number': 4,
+            'step_type': 'multiple_choice',
+            'title': 'Which Tag Creates a Heading?',
+            'content': {
+                'question': 'Which tag creates a heading?',
+                'options': ['<h1>', '<p>', '<a>', '<div>'],
+                'correct_index': 0,
+            },
+            'hint': 'Headings start with the letter h.',
+        },
+        {
+            'number': 5,
+            'step_type': 'fill_in',
+            'title': 'Complete the Sentence',
+            'content': {
+                'template': 'The ___ tag creates a paragraph.',
+                'answer': 'p',
+                'case_sensitive': False,
+            },
+            'hint': 'It is a single letter tag.',
+        },
+        {
+            'number': 6,
+            'step_type': 'debugging',
+            'title': 'Fix the Broken Tag',
+            'content': {
+                'prompt': 'This HTML has a bug. The closing tag is wrong. Fix it!',
+                'buggy_code': '<h1>Hello</h2>',
+                'language': 'html',
+                'validation': {'mode': 'contains', 'expected': '</h1>'},
+            },
+            'hint': 'The opening tag is <h1>, so the closing tag should match.',
+        },
+        {
+            'number': 7,
+            'step_type': 'mini_challenge',
+            'title': 'Build a Page',
+            'content': {
+                'prompt': 'Build a page with a heading and a paragraph.',
+                'starter_code': '',
+                'language': 'html',
+                'validation': {'mode': 'contains_all', 'expected': ['<h1>', '<p>', '</p>']},
+            },
+            'hint': 'Use <h1> for the heading and <p> for the paragraph.',
+        },
+        {
+            'number': 8,
+            'step_type': 'reflection',
+            'title': 'What Did You Learn?',
+            'content': {
+                'question': 'What was the most interesting thing you learned about HTML?',
+                'type': 'free_text',
+            },
+            'hint': '',
+            'is_required': False,
+        },
+    ],
+    'html-2': [
+        {
+            'number': 1,
+            'step_type': 'explanation',
+            'title': 'What Are Tags and Elements?',
+            'content': {
+                'text': 'HTML tags are special words wrapped in angle brackets like <p> and </p>. An element is everything from the opening tag to the closing tag, including the content inside. For example, <p>Hello</p> is a paragraph element.',
+            },
+            'hint': '',
+        },
+        {
+            'number': 2,
+            'step_type': 'example',
+            'title': 'Nesting Elements',
+            'content': {
+                'text': 'You can put elements inside other elements. This is called nesting:',
+                'code': '<div>\n  <h1>Welcome</h1>\n  <p>This is inside a div.</p>\n</div>',
+                'language': 'html',
+            },
+            'hint': 'The inner elements are indented to show they are nested.',
+        },
+        {
+            'number': 3,
+            'step_type': 'multiple_choice',
+            'title': 'Spot the Element',
+            'content': {
+                'question': 'Which of these is a complete HTML element?',
+                'options': ['<p>Hello</p>', '<p>Hello', 'Hello</p>', '<p>'],
+                'correct_index': 0,
+            },
+            'hint': 'A complete element has both an opening and closing tag with content.',
+        },
+        {
+            'number': 4,
+            'step_type': 'fill_in',
+            'title': 'Name the Parts',
+            'content': {
+                'template': 'The ___ tag closes an HTML element.',
+                'answer': 'closing',
+                'case_sensitive': False,
+            },
+            'hint': 'It is the tag with a forward slash, like </p>.',
+        },
+        {
+            'number': 5,
+            'step_type': 'guided_coding',
+            'title': 'Create a Nested Structure',
+            'content': {
+                'prompt': 'Create a <div> with an <h2> heading inside it.',
+                'starter_code': '',
+                'language': 'html',
+                'validation': {'mode': 'contains_all', 'expected': ['<div>', '<h2>', '</h2>', '</div>']},
+            },
+            'hint': 'Make sure to close both tags properly.',
+        },
+        {
+            'number': 6,
+            'step_type': 'debugging',
+            'title': 'Fix the Nesting',
+            'content': {
+                'prompt': 'The tags are not properly nested. Fix the code!',
+                'buggy_code': '<div><p>Hello</div></p>',
+                'language': 'html',
+                'validation': {'mode': 'contains', 'expected': '</p></div>'},
+            },
+            'hint': 'Inner tags should close before outer tags.',
+        },
+        {
+            'number': 7,
+            'step_type': 'checkpoint',
+            'title': 'Tag Knowledge Check',
+            'content': {
+                'question': 'What does HTML stand for?',
+                'options': ['Hyper Text Markup Language', 'High Tech Modern Language'],
+                'correct_index': 0,
+            },
+            'hint': 'Think about what you learned in the first lesson.',
+        },
+        {
+            'number': 8,
+            'step_type': 'mini_challenge',
+            'title': 'Build a Structured Page',
+            'content': {
+                'prompt': 'Create a page with a <div> containing an <h1>, a <p>, and another <p>.',
+                'starter_code': '',
+                'language': 'html',
+                'validation': {'mode': 'contains_all', 'expected': ['<div>', '<h1>', '<p>', '</div>']},
+            },
+            'hint': 'Remember to nest everything inside the <div>.',
+        },
+        {
+            'number': 9,
+            'step_type': 'reflection',
+            'title': 'Reflect on Tags',
+            'content': {
+                'question': 'Why do you think nesting is important in HTML?',
+                'type': 'free_text',
+            },
+            'hint': '',
+            'is_required': False,
+        },
+    ],
+}
+
 
 class Command(BaseCommand):
-    help = 'Seed academy tracks and lessons (8 tracks / 44 lessons)'
+    help = 'Seed academy tracks, lessons, and lesson steps'
 
     def handle(self, *args, **options):
         total_lessons = 0
+        total_steps = 0
 
         for track_id, title, description, icon, color, order in TRACKS:
             track, _ = LearningTrack.objects.update_or_create(
@@ -153,6 +352,21 @@ class Command(BaseCommand):
                 previous = lesson
                 total_lessons += 1
 
+                # Seed lesson steps if defined
+                if lesson_id in LESSON_STEPS:
+                    LessonStep.objects.filter(lesson=lesson).delete()
+                    for step_data in LESSON_STEPS[lesson_id]:
+                        LessonStep.objects.create(
+                            lesson=lesson,
+                            number=step_data['number'],
+                            step_type=step_data['step_type'],
+                            title=step_data['title'],
+                            content=step_data['content'],
+                            hint=step_data.get('hint', ''),
+                            is_required=step_data.get('is_required', True),
+                        )
+                        total_steps += 1
+
         self.stdout.write(self.style.SUCCESS(
-            f'Academy seeded (tracks={len(TRACKS)}, lessons={total_lessons})'
+            f'Academy seeded (tracks={len(TRACKS)}, lessons={total_lessons}, steps={total_steps})'
         ))

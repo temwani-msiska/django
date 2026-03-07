@@ -1,5 +1,6 @@
 import uuid
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -65,10 +66,11 @@ class Scene(models.Model):
         max_length=20,
         default='next',
         choices=[
-            ('next', 'Next scene'),
-            ('choice', 'Player choice'),
-            ('run_code', 'Run code button'),
-            ('end', 'End of arc'),
+            ('next', 'Next Scene'),
+            ('choice', 'Player Choice'),
+            ('run_code', 'Run Code Challenge'),
+            ('challenge', 'Inline Challenge'),
+            ('end', 'End Arc'),
         ],
     )
     action_payload = models.JSONField(
@@ -80,6 +82,12 @@ class Scene(models.Model):
     class Meta:
         ordering = ['arc', 'order']
         unique_together = ('arc', 'order')
+
+    def clean(self):
+        from story.schemas import validate_scene_data
+        errors = validate_scene_data(self)
+        if errors:
+            raise ValidationError({'scene_data': errors})
 
     def __str__(self):
         return f'{self.arc_id} / Scene {self.order}'
