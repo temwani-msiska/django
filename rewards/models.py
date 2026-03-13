@@ -21,6 +21,23 @@ class EarnedBadge(models.Model):
         unique_together = ('child', 'badge')
 
 
+class Rank(models.Model):
+    slug = models.SlugField(primary_key=True)
+    name = models.CharField(max_length=100)
+    title = models.CharField(max_length=200)
+    emoji = models.CharField(max_length=10)
+    min_missions = models.PositiveIntegerField(unique=True)
+    color = models.CharField(max_length=7)
+    description = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return self.name
+
+
 class ActivityLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     child = models.ForeignKey('accounts.ChildProfile', on_delete=models.CASCADE, related_name='activity_logs')

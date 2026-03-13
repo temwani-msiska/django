@@ -3,6 +3,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from accounts.views import (
     ChildActivityView,
+    ChildActivityTimelineView,
+    ChildAnalyticsView,
     ChildCreateView,
     ChildLoginView,
     ChildMeView,
@@ -13,7 +15,9 @@ from accounts.views import (
     ParentLoginView,
     ParentMeView,
     ParentRegisterView,
+    PilotDataExportView,
     ResendConfirmationView,
+    XPBreakdownView,
     logout_view,
 )
 
@@ -29,7 +33,11 @@ urlpatterns = [
     path('user/me', ChildMeView.as_view()),
     path('user/progress', ChildProgressView.as_view()),
     path('user/preferences', ChildPreferencesView.as_view()),
+    path('user/xp-breakdown', XPBreakdownView.as_view()),
     path('parent/me', ParentMeView.as_view()),
     path('parent/children/<uuid:id>/screen-time', ChildScreenTimeView.as_view()),
     path('parent/children/<uuid:id>/activity', ChildActivityView.as_view()),
+    path('parent/children/<uuid:id>/analytics', ChildAnalyticsView.as_view()),
+    path('parent/children/<uuid:id>/timeline', ChildActivityTimelineView.as_view()),
+    path('parent/export', PilotDataExportView.as_view()),
 ]
