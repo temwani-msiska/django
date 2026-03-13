@@ -57,9 +57,6 @@ class ChildProfile(models.Model):
     joined_at = models.DateTimeField(auto_now_add=True)
     screen_time_limit_minutes = models.IntegerField(default=60)
     is_active = models.BooleanField(default=True)
-    current_rank = models.ForeignKey(
-        'rewards.Rank', null=True, blank=True, on_delete=models.SET_NULL, related_name='children'
-    )
 
     class Meta:
         unique_together = ('parent', 'nickname')

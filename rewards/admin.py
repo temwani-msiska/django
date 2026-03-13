@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from rewards.models import ActivityLog, Badge, EarnedBadge, Rank
+from rewards.models import ActivityLog, Badge, EarnedBadge
 
 
 @admin.register(Badge)
@@ -14,12 +14,6 @@ class BadgeAdmin(admin.ModelAdmin):
 class EarnedBadgeAdmin(admin.ModelAdmin):
     list_display = ('child', 'badge', 'earned_at')
     search_fields = ('child__nickname', 'badge__name')
-
-
-@admin.register(Rank)
-class RankAdmin(admin.ModelAdmin):
-    list_display = ('slug', 'name', 'min_missions', 'order')
-    ordering = ('order',)
 
 
 @admin.register(ActivityLog)
