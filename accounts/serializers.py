@@ -4,9 +4,9 @@ from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.models import ChildPreferences, ChildProfile
-from core.utils import STREAK_MILESTONES, get_current_rank, get_next_rank, xp_for_level
+from core.utils import xp_for_level
 from rewards.models import ActivityLog
-from rewards.serializers import ActivityLogSerializer, BadgeSerializer, RankSerializer
+from rewards.serializers import ActivityLogSerializer, BadgeSerializer
 
 User = get_user_model()
 
@@ -108,15 +108,10 @@ class PlayerProgressSerializer(serializers.Serializer):
     level = serializers.IntegerField()
     streak = serializers.IntegerField()
     xp_to_next_level = serializers.SerializerMethodField()
+    badges = serializers.SerializerMethodField()
+    activity = serializers.SerializerMethodField()
     total_missions = serializers.SerializerMethodField()
     missions_completed = serializers.SerializerMethodField()
-    total_lessons = serializers.SerializerMethodField()
-    lessons_completed = serializers.SerializerMethodField()
-    current_rank = serializers.SerializerMethodField()
-    next_rank = serializers.SerializerMethodField()
-    badges = serializers.SerializerMethodField()
-    recent_activity = serializers.SerializerMethodField()
-    streak_milestone_next = serializers.SerializerMethodField()
 
     def get_xp_to_next_level(self, obj):
         return max(xp_for_level(obj.level) - obj.xp, 0)
@@ -126,7 +121,7 @@ class PlayerProgressSerializer(serializers.Serializer):
 
         return BadgeSerializer(Badge.objects.all(), many=True, context={'child': obj}).data
 
-    def get_recent_activity(self, obj):
+    def get_activity(self, obj):
         logs = ActivityLog.objects.filter(child=obj).order_by('-created_at')[:10]
         return ActivityLogSerializer(logs, many=True).data
 
@@ -137,36 +132,6 @@ class PlayerProgressSerializer(serializers.Serializer):
 
     def get_missions_completed(self, obj):
         return obj.mission_progress.filter(status='completed').count()
-
-    def get_total_lessons(self, obj):
-        from academy.models import Lesson
-
-        return Lesson.objects.count()
-
-    def get_lessons_completed(self, obj):
-        from academy.models import LessonProgress
-
-        return LessonProgress.objects.filter(child=obj, completed=True).count()
-
-    def get_current_rank(self, obj):
-        rank = get_current_rank(obj)
-        return RankSerializer(rank).data if rank else None
-
-    def get_next_rank(self, obj):
-        result = get_next_rank(obj)
-        if result:
-            return {
-                'rank': RankSerializer(result['rank']).data,
-                'missions_needed': result['missions_needed'],
-            }
-        return None
-
-    def get_streak_milestone_next(self, obj):
-        milestones = sorted(STREAK_MILESTONES.keys())
-        for milestone in milestones:
-            if obj.streak < milestone:
-                return {'days_needed': milestone - obj.streak, 'milestone': milestone}
-        return None
 
 
 def tokens_for_user(user, child_id=None):
