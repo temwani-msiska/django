@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 
 from academy.models import LearningTrack, Lesson, LessonStep
+from characters.models import Character
 
 
 # (id, title, description, icon, color, order)
@@ -366,6 +367,26 @@ class Command(BaseCommand):
                             is_required=step_data.get('is_required', True),
                         )
                         total_steps += 1
+
+        # Assign characters to tracks
+        track_character_map = {
+            'track-logic': 'byte',
+            'track-html': 'byte',
+            'track-css': 'pixel',
+            'track-design': 'pixel',
+            'track-js': 'nova',
+            'track-games': 'nova',
+            'track-projects': 'pixel',
+            'track-safety': 'byte',
+        }
+        for track_id, char_slug in track_character_map.items():
+            try:
+                track = LearningTrack.objects.get(id=track_id)
+                character = Character.objects.get(slug=char_slug)
+                track.character = character
+                track.save(update_fields=['character'])
+            except (LearningTrack.DoesNotExist, Character.DoesNotExist):
+                pass
 
         self.stdout.write(self.style.SUCCESS(
             f'Academy seeded (tracks={len(TRACKS)}, lessons={total_lessons}, steps={total_steps})'

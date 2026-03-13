@@ -10,6 +10,14 @@ class LearningTrack(models.Model):
     icon = models.CharField(max_length=10)
     color = models.CharField(max_length=7)
     order = models.IntegerField(default=0)
+    character = models.ForeignKey(
+        'characters.Character',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='tracks',
+        help_text='The SHERO character who teaches this track',
+    )
 
 
 class Lesson(models.Model):
