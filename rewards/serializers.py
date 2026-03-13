@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from rewards.models import ActivityLog, Badge, EarnedBadge
+from rewards.models import ActivityLog, Badge, EarnedBadge, Rank
 
 
 class BadgeSerializer(serializers.ModelSerializer):
@@ -23,6 +23,12 @@ class BadgeSerializer(serializers.ModelSerializer):
             return None
         earned = EarnedBadge.objects.filter(child=child, badge=obj).first()
         return earned.earned_at if earned else None
+
+
+class RankSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Rank
+        fields = ('slug', 'name', 'title', 'emoji', 'min_missions', 'color', 'description', 'order')
 
 
 class ActivityLogSerializer(serializers.ModelSerializer):

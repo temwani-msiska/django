@@ -30,6 +30,15 @@ class Command(BaseCommand):
             ('badge-logic-legend', 'Logic Legend', "Completed Byte's final challenge", '🏆', 'legendary', 'Byte'),
             ('badge-design-legend', 'Design Legend', "Completed Pixel's final challenge", '🏆', 'legendary', 'Pixel'),
             ('badge-discovery-legend', 'Discovery Legend', "Completed Nova's final challenge", '🏆', 'legendary', 'Nova'),
+
+            # Streak badges
+            ('streak-3-day', '3-Day Streak', '3-day streak milestone!', '🔥', 'common', 'streak'),
+            ('streak-5-day', '5-Day Streak', '5-day streak milestone!', '🔥🔥', 'common', 'streak'),
+            ('streak-7-day', 'Week Warrior', '7-day streak milestone!', '⚡', 'rare', 'streak'),
+            ('streak-14-day', 'Two-Week Champion', '14-day streak milestone!', '💪', 'rare', 'streak'),
+            ('streak-30-day', 'Monthly Master', '30-day streak milestone!', '🏆', 'epic', 'streak'),
+            ('streak-60-day', 'Unstoppable', '60-day streak milestone!', '🌟', 'epic', 'streak'),
+            ('streak-100-day', 'Legendary Streak', '100-day streak milestone!', '💎', 'legendary', 'streak'),
         ]
         for badge_id, name, description, emoji, rarity, category in badges:
             Badge.objects.update_or_create(
