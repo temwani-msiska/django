@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from academy.models import LearningTrack, Lesson, LessonProgress, LessonStep, LessonStepProgress
 from accounts.models import ChildProfile, ParentUser
+from rewards.models import ActivityLog
 
 
 def _create_child():
@@ -210,6 +211,172 @@ class LessonDetailEndpointTest(TestCase):
         # All steps should be locked initially
         for step_data in resp.data['steps']:
             self.assertEqual(step_data['status'], 'locked')
+
+
+class LessonUnlockChainTest(TestCase):
+    """Test that unlock_after chain controls lesson availability."""
+
+    def setUp(self):
+        self.child = _create_child()
+        self.track = LearningTrack.objects.create(
+            id=f'chain-track-{uuid.uuid4().hex[:6]}', title='Chain Track',
+            description='', icon='C', color='#000', order=99,
+        )
+        self.lesson1 = Lesson.objects.create(
+            id=f'chain-l1-{uuid.uuid4().hex[:6]}', track=self.track,
+            title='Lesson 1', description='', duration='5 min', order=1,
+            unlock_after=None,
+        )
+        self.lesson2 = Lesson.objects.create(
+            id=f'chain-l2-{uuid.uuid4().hex[:6]}', track=self.track,
+            title='Lesson 2', description='', duration='5 min', order=2,
+            unlock_after=self.lesson1,
+        )
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {_child_token(self.child)}')
+
+    def test_first_lesson_is_not_locked(self):
+        resp = self.client.get(f'/api/academy/lessons/{self.lesson1.id}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.data['locked'])
+
+    def test_second_lesson_is_locked_initially(self):
+        resp = self.client.get(f'/api/academy/lessons/{self.lesson2.id}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data['locked'])
+
+    def test_start_locked_lesson_returns_403(self):
+        resp = self.client.post(f'/api/academy/lessons/{self.lesson2.id}/start')
+        self.assertEqual(resp.status_code, 403)
+
+    def test_second_lesson_unlocks_after_completing_first(self):
+        # Complete lesson 1
+        LessonProgress.objects.create(child=self.child, lesson=self.lesson1, completed=True)
+        resp = self.client.get(f'/api/academy/lessons/{self.lesson2.id}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.data['locked'])
+
+    def test_tracks_list_shows_locked_field(self):
+        resp = self.client.get('/api/academy/tracks')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.data
+        # Handle potential pagination wrapper
+        if isinstance(data, dict) and 'results' in data:
+            data = data['results']
+        for track in data:
+            for lesson in track.get('lessons', []):
+                self.assertIn('locked', lesson)
+
+
+class LessonStartInitializesStepTest(TestCase):
+    """POST /start activates the first step."""
+
+    def test_start_activates_first_step(self):
+        child = _create_child()
+        lesson, steps = _create_lesson_with_steps(3)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {_child_token(child)}')
+
+        resp = client.post(f'/api/academy/lessons/{lesson.id}/start')
+        self.assertEqual(resp.status_code, 200)
+
+        # Step 1 must be active
+        sp = LessonStepProgress.objects.get(child=child, step=steps[0])
+        self.assertEqual(sp.status, 'active')
+
+        # Steps 2 and 3 remain locked
+        self.assertFalse(LessonStepProgress.objects.filter(child=child, step=steps[1]).exists())
+
+    def test_start_returns_steps_in_response(self):
+        child = _create_child()
+        lesson, steps = _create_lesson_with_steps(2)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {_child_token(child)}')
+
+        resp = client.post(f'/api/academy/lessons/{lesson.id}/start')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('steps', resp.data)
+        self.assertEqual(len(resp.data['steps']), 2)
+
+
+class LessonCompletionAndXPTest(TestCase):
+    """Completing all required steps awards XP and logs activity."""
+
+    def test_lesson_completion_awards_xp_and_logs_activity(self):
+        child = _create_child()
+        lesson, steps = _create_lesson_with_steps(2)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {_child_token(child)}')
+
+        client.post(f'/api/academy/lessons/{lesson.id}/start')
+
+        # Submit step 1
+        client.post(
+            f'/api/academy/lessons/{lesson.id}/steps/1/submit',
+            {'answer': {'selected_index': 0}}, format='json',
+        )
+
+        # Submit step 2 — triggers completion
+        resp = client.post(
+            f'/api/academy/lessons/{lesson.id}/steps/2/submit',
+            {'answer': {'selected_index': 0}}, format='json',
+        )
+        self.assertTrue(resp.data['lesson_completed'])
+        self.assertEqual(resp.data['xp_earned'], 50)
+
+        child.refresh_from_db()
+        self.assertEqual(child.xp, 50)
+
+        log = ActivityLog.objects.filter(child=child, type='lesson_completed').first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.xp_earned, 50)
+
+    def test_next_lesson_unlocks_after_completion(self):
+        child = _create_child()
+        track = LearningTrack.objects.create(
+            id=f'unlock-track-{uuid.uuid4().hex[:6]}', title='Unlock Track',
+            description='', icon='U', color='#000', order=100,
+        )
+        lesson1 = Lesson.objects.create(
+            id=f'ul1-{uuid.uuid4().hex[:6]}', track=track, title='L1',
+            description='', duration='5 min', order=1, unlock_after=None,
+        )
+        lesson2 = Lesson.objects.create(
+            id=f'ul2-{uuid.uuid4().hex[:6]}', track=track, title='L2',
+            description='', duration='5 min', order=2, unlock_after=lesson1,
+        )
+        step = LessonStep.objects.create(
+            lesson=lesson1, number=1, step_type='multiple_choice', title='Q',
+            content={'question': 'Q?', 'options': ['A'], 'correct_index': 0},
+            is_required=True,
+        )
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {_child_token(child)}')
+
+        client.post(f'/api/academy/lessons/{lesson1.id}/start')
+        client.post(
+            f'/api/academy/lessons/{lesson1.id}/steps/1/submit',
+            {'answer': {'selected_index': 0}}, format='json',
+        )
+
+        # lesson2 should now be unlocked
+        resp = client.get(f'/api/academy/lessons/{lesson2.id}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.data['locked'])
+
+
+class StepsExistTest(TestCase):
+    """GET /lessons/{slug} returns steps array."""
+
+    def test_lesson_detail_steps_not_empty(self):
+        child = _create_child()
+        lesson, steps = _create_lesson_with_steps(2)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {_child_token(child)}')
+
+        resp = client.get(f'/api/academy/lessons/{lesson.id}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data['steps']), 2)
 
 
 class DraftSaveLoadTest(TestCase):
