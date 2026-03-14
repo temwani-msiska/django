@@ -8,8 +8,9 @@ from rest_framework.views import APIView
 from academy.models import LearningTrack, Lesson, LessonProgress, LessonStep, LessonStepProgress
 from academy.serializers import LearningTrackSerializer, LessonSerializer, LessonStepSubmitSerializer
 from core.authentication import get_child_from_request
-from core.utils import check_level_up
+from core.utils import check_level_up, update_streak
 from playground.validators import validate_step_answer
+from rewards.models import ActivityLog
 
 
 class LearningTrackListView(ListAPIView):
@@ -57,12 +58,39 @@ class LessonStartView(APIView):
     def post(self, request, slug):
         child = get_child_from_request(request)
         lesson = get_object_or_404(Lesson, id=slug)
-        first_step = lesson.steps.order_by('number').first()
-        if first_step:
-            LessonStepProgress.objects.get_or_create(
+
+        # Check if lesson is locked
+        if lesson.unlock_after:
+            prerequisite_done = LessonProgress.objects.filter(
+                child=child, lesson=lesson.unlock_after, completed=True
+            ).exists()
+            if not prerequisite_done:
+                return Response(
+                    {'error': 'This lesson is locked. Complete the previous lesson first.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        # Create or get LessonProgress
+        LessonProgress.objects.get_or_create(
+            child=child, lesson=lesson,
+            defaults={'completed': False},
+        )
+
+        # Initialise step progress: activate the first step that has no progress or is still locked
+        steps = lesson.steps.order_by('number')
+        if steps.exists():
+            first_step = steps.first()
+            step_progress, created = LessonStepProgress.objects.get_or_create(
                 child=child, step=first_step,
-                defaults={'status': 'active'}
+                defaults={'status': 'active'},
             )
+            # If it already exists but is still locked (e.g. from an interrupted session), activate it
+            if not created and step_progress.status == 'locked':
+                step_progress.status = 'active'
+                step_progress.save()
+
+        update_streak(child)
+
         serializer = LessonSerializer(lesson, context={'child': child, 'request': request})
         return Response(serializer.data)
 
@@ -82,6 +110,7 @@ class LessonStepSubmitView(APIView):
         result = validate_step_answer(step.step_type, step.content, answer)
 
         lesson_completed = False
+        xp_earned = 0
         if result['passed']:
             progress, _ = LessonStepProgress.objects.get_or_create(
                 child=child, step=step,
@@ -97,10 +126,13 @@ class LessonStepSubmitView(APIView):
                 lesson=lesson, number=step.number + 1
             ).first()
             if next_step:
-                LessonStepProgress.objects.get_or_create(
+                next_progress, _ = LessonStepProgress.objects.get_or_create(
                     child=child, step=next_step,
-                    defaults={'status': 'active'}
+                    defaults={'status': 'locked'},
                 )
+                if next_progress.status == 'locked':
+                    next_progress.status = 'active'
+                    next_progress.save()
 
             # Check if lesson is complete
             required_steps = lesson.steps.filter(is_required=True).count()
@@ -112,13 +144,28 @@ class LessonStepSubmitView(APIView):
             ).count()
 
             if completed_steps >= required_steps:
-                LessonProgress.objects.update_or_create(
+                lesson_progress, created = LessonProgress.objects.get_or_create(
                     child=child, lesson=lesson,
-                    defaults={'completed': True, 'completed_at': timezone.now()}
+                    defaults={'completed': False},
                 )
-                child.xp += 50
-                child.save(update_fields=['xp'])
-                check_level_up(child)
+                if not lesson_progress.completed:
+                    lesson_progress.completed = True
+                    lesson_progress.completed_at = timezone.now()
+                    lesson_progress.save()
+
+                    xp_earned = 50
+                    child.xp += xp_earned
+                    child.save(update_fields=['xp'])
+                    check_level_up(child)
+
+                    ActivityLog.objects.create(
+                        child=child,
+                        type='lesson_completed',
+                        title=f'Completed: {lesson.title}',
+                        description=f'Finished lesson "{lesson.title}" in {lesson.track.title}',
+                        xp_earned=xp_earned,
+                    )
+
                 lesson_completed = True
 
         return Response({
@@ -126,6 +173,7 @@ class LessonStepSubmitView(APIView):
             'feedback': result['feedback'],
             'step_completed': result['passed'],
             'lesson_completed': lesson_completed,
+            'xp_earned': xp_earned,
         })
 
 

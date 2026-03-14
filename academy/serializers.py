@@ -28,6 +28,7 @@ class LessonStepSerializer(serializers.ModelSerializer):
 
 class LessonSerializer(serializers.ModelSerializer):
     completed = serializers.SerializerMethodField()
+    locked = serializers.SerializerMethodField()
     slug = serializers.CharField(source='id', read_only=True)
     steps = LessonStepSerializer(many=True, read_only=True)
     step_count = serializers.SerializerMethodField()
@@ -36,13 +37,25 @@ class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = ['id', 'slug', 'title', 'description', 'duration', 'order',
-                  'completed', 'steps', 'step_count', 'completed_steps']
+                  'completed', 'locked', 'steps', 'step_count', 'completed_steps']
 
     def get_completed(self, obj):
         child = self.context.get('child')
         if not child:
             return False
         return LessonProgress.objects.filter(child=child, lesson=obj, completed=True).exists()
+
+    def get_locked(self, obj):
+        child = self.context.get('child')
+        if not child:
+            return True
+        # If no unlock_after, the lesson is always available
+        if obj.unlock_after is None:
+            return False
+        # Check if the prerequisite lesson is completed
+        return not LessonProgress.objects.filter(
+            child=child, lesson=obj.unlock_after, completed=True
+        ).exists()
 
     def get_step_count(self, obj):
         return obj.steps.filter(is_required=True).count()
