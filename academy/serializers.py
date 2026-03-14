@@ -61,10 +61,14 @@ class LessonSerializer(serializers.ModelSerializer):
 
 class LearningTrackSerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
+    slug = serializers.CharField(source='id', read_only=True)
+    characterSlug = serializers.CharField(source='character.slug', read_only=True, default=None)
+    characterName = serializers.CharField(source='character.name', read_only=True, default=None)
 
     class Meta:
         model = LearningTrack
-        fields = '__all__'
+        fields = ['id', 'slug', 'title', 'description', 'icon', 'color',
+                  'order', 'characterSlug', 'characterName', 'lessons']
 
 
 class LessonStepSubmitSerializer(serializers.Serializer):
